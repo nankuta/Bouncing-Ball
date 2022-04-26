@@ -1,23 +1,22 @@
 npoints = 50;
-
 dx = 1/npoints;
-radius = 1;
+radius = 1; %of the ball
 tfinal = 100;
 nsteps = 10000;
 dt = tfinal/nsteps;
 g = 10;
-tau = 1;
-m = .1;
+m = .1; %of the ball
 U = 0; %elastic potential
 pos = 5;
 vel = -5;
 field = 5;
 
-E_ball = 10^5; %Young's modulus of the ball's material (rubber)
-E_wall = 23; %Young's modulus of the wall's material (concrete)
-G_ball = .0006; %Shear modulus of the ball's material (rubber)
-G_wall = .8; %Shear modulus of the wall's material
+E_ball = 10^5; %Young's modulus of the ball's material
+E_wall = 23; %Young's modulus of the half plane's material
+G_ball = .0006; %Shear modulus of the ball's material
+G_wall = .8; %Shear modulus of the half plane's material
 
+%effective elasticity constant of the contact
 E_effective = 1/((1-G_ball^2)/E_ball + (1-G_wall^2)/E_wall);
 
 delta_k = E_effective*dx; %stiffness of spring over area element
@@ -27,16 +26,16 @@ KE = 0;
 [x,y,z] = create_ball(ceil(npoints/2), radius);
 z = z + pos;
 
+
 x_hs = linspace(-field, field, npoints);
 y_hs = linspace(-field, field, npoints);
-z_hs = zeros(npoints);
 
 H_hs_prev = zeros(npoints);
 
 for t = 1:nsteps
     clf
     
-    KE = .5*m*vel^2;
+    %KE = .5*m*vel^2;
     normal_force = get_force(pos, E_effective, radius);
     a = normal_force/m - g;
     vel = vel + a*dt;
@@ -54,9 +53,9 @@ for t = 1:nsteps
     surfl(x,y,z); hold all
     surfl(x_hs, y_hs, H_hs); hold all
         axis([-field,field,-field,field,0,2*field])
-    %if mod(t, 2) == 0
+    if mod(t, 2) == 0
     drawnow
-    %end
+    end
 end    
 
 %create the sphere
