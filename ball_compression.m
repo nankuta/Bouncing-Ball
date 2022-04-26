@@ -1,4 +1,4 @@
-npoints = 20;
+npoints = 50;
 
 dx = 1/npoints;
 radius = 1;
@@ -7,10 +7,11 @@ nsteps = 10000;
 dt = tfinal/nsteps;
 g = 10;
 tau = 1;
-m = 1;
+m = .1;
 U = 0; %elastic potential
 pos = 5;
 vel = -5;
+field = 5;
 
 E_ball = 10^5; %Young's modulus of the ball's material (rubber)
 E_wall = 23; %Young's modulus of the wall's material (concrete)
@@ -23,8 +24,14 @@ delta_k = E_effective*dx; %stiffness of spring over area element
 
 KE = 0;
 
-[x,y,z] = create_ball(npoints, radius);
+[x,y,z] = create_ball(ceil(npoints/2), radius);
 z = z + pos;
+
+x_hs = linspace(-field, field, npoints);
+y_hs = linspace(-field, field, npoints);
+z_hs = zeros(npoints);
+
+H_hs_prev = zeros(npoints);
 
 for t = 1:nsteps
     clf
@@ -33,19 +40,26 @@ for t = 1:nsteps
     normal_force = get_force(pos, E_effective, radius);
     a = normal_force/m - g;
     vel = vel + a*dt;
-%   U = U + normal_force*dt;
-%   KE = KE - normal_force*dt;
-%   vel = sign*sqrt(2*abs(KE)/m) - g*dt;
+    %equations needed for inelastic collisions (in which KE is nonconstant)
+    %U = U + normal_force*dt;
+    %KE = KE - normal_force*dt;
+    %vel = sign*sqrt(2*abs(KE)/m) - g*dt;
     pos = pos + vel*dt;
     z = z + vel*dt;
-        
+    
+    H_hs = profile_ehs(x_hs, y_hs, pos, radius, npoints);
+    %v term in case we want to model extra waves...
+    %v_hs = (H_hs-H_hs_prev);
+    
     surfl(x,y,z); hold all
-        axis([-5,5,-5,5,0,10])
-    if mod(t, 2) == 0
+    surfl(x_hs, y_hs, H_hs); hold all
+        axis([-field,field,-field,field,0,2*field])
+    %if mod(t, 2) == 0
     drawnow
-    end
+    %end
 end    
 
+%create the sphere
 function [Xcoords, Ycoords, Zcoords] = create_ball(npoints, radius)
 
     Xcoords=zeros(npoints, npoints);
@@ -61,6 +75,7 @@ function [Xcoords, Ycoords, Zcoords] = create_ball(npoints, radius)
     end
 end
 
+%compute the normal force
 function normal_force = get_force(pos, E_effective, radius)
     
     if pos <= radius
@@ -80,4 +95,32 @@ function normal_force = get_force(pos, E_effective, radius)
     %formula. if we induce waves onto the profile, we will need to compute
     %the surface integral manually within this function
     normal_force = (2*k-2/3)*E_effective*sqrt(radius*d^3);
+end
+
+%get the profile of the elastic half space
+function ehs = profile_ehs(x_hs, y_hs, pos, radius, npoints)
+    ehs = zeros(npoints);
+    
+    if pos > radius
+        return
+    else
+        a = sqrt(radius^2-(pos)^2);
+        r = zeros(npoints);
+        
+        for i = 1:npoints
+            for j = 1:npoints   
+                r(i,j)= sqrt(x_hs(i)^2+y_hs(j)^2);
+                if r(i,j) < a
+                    ehs(i,j) = sqrt(radius^2-(pos)^2);
+                elseif r(i,j) < radius
+                    ehs(i,j) = (2/pi)*((atanh(a/radius)*(a*asin(a/r(i,j))+sqrt(r(i,j)^2-a^2)))...
+                    -radius*asin(a/r(i,j)) + sqrt(radius^2-r(i,j)^2)...
+                    *atan((a*sqrt(radius^2-r(i,j)^2))/(radius*sqrt(r(i,j)^2-a^2))));
+                elseif r(i,j) >= radius
+                    ehs(i,j) = (2/pi)*((atanh(a/radius)*(a*asin(a/r(i,j))+sqrt(r(i,j)^2-a^2)))...
+                    -radius*asin(a/r(i,j)));
+                end
+            end
+        end
+    end
 end
